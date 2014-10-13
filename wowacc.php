@@ -31,9 +31,15 @@ class plgUserWowacc extends JPlugin
 		else {
 			$wowpass = '';
 		}
+		//check if a new email was set
+		if ($user['email'] == $new['email']) {
+			//new password --> encrypt it
+			$newmail = false;
+		}
 		//save hashed password in new session variable
 		$session = JFactory::getSession();
 		$session->set('wowpass', $wowpass); 
+		$session->set('newmail', $newmail); 
 		
     }
     function onUserAfterSave($user, $isnew, $success, $msg)
@@ -59,6 +65,7 @@ class plgUserWowacc extends JPlugin
 			//Load new Values (saved in Session in onUserBeforeSave)
 			$session = JFactory::getSession();
 			$wowpass = $session->get('wowpass');
+			$newmail = $session->get('newmail');
 			$wowmail = $user['email'];
 			$wowuser = $user['username'];
 			//Get Databasesession
@@ -77,6 +84,11 @@ class plgUserWowacc extends JPlugin
 				$set_val[0] = "'$wowuser', '$wowpass', '$wowmail',";
 			}		
 			else {
+				//Any changes to email or password?
+				if ((empty($wowpass)) && (!$newmail)){
+					//no changes made
+					return;
+				}
 				//Is a new password set?
 				if (empty($wowpass)){
 					//password is empty, so password hasn't changed
