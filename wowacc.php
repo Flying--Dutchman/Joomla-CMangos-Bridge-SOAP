@@ -21,7 +21,6 @@ class plgUserWowacc extends JPlugin
 			$post_array = JFactory::getApplication()->input->get('jform', array(), 'ARRAY');
 			$pass = $post_array['password'];
 		}
-		
 		//check if a new password was set
 		if ($user['password'] != $new['password']) {
 			//new password --> encrypt it
@@ -33,7 +32,6 @@ class plgUserWowacc extends JPlugin
 		}
 		//check if a new email was set
 		if ($user['email'] == $new['email']) {
-			//new password --> encrypt it
 			$newmail = false;
 		}
 		else {
@@ -42,14 +40,11 @@ class plgUserWowacc extends JPlugin
 		$usergroupold = $user['groups'];
 		$usergroup = $new['groups'];
 		//check if groups was altered
-		if (count( array_intersect($usergroupold, $usergroup) > 0)) {
-			//was altered (maybe not a impotant groupchange, but to lazy to write that code)
-			$newgroups = true;
-		}
-		elseif (count( array_intersect($usergroup, $usergroupold) > 0)) {
-			$newgroups = true;
+		if (!(array_diff($usergroupold, $usergroup)) && !(array_diff($usergroup, $usergroupold))) {
+			$newgroups = false;
 		}
 		else {
+			//was altered (maybe not a impotant groupchange, but to lazy to write that code)
 			$newgroups = false;
 		}
 		//save hashed password in new session variable
