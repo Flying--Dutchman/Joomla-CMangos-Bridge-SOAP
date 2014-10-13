@@ -36,10 +36,27 @@ class plgUserWowacc extends JPlugin
 			//new password --> encrypt it
 			$newmail = false;
 		}
+		else {
+			$newmail = true;
+		}
+		$usergroupold = $user['groups'];
+		$usergroup = $new['groups'];
+		//check if groups was altered
+		if (count( array_intersect($usergroupold, $usergroup) > 0)) {
+			//was altered (maybe not a impotant groupchange, but to lazy to write that code)
+			$newgroups = true;
+		}
+		elseif (count( array_intersect($usergroup, $usergroupold) > 0)) {
+			$newgroups = true;
+		}
+		else {
+			$newgroups = false;
+		}
 		//save hashed password in new session variable
 		$session = JFactory::getSession();
 		$session->set('wowpass', $wowpass); 
-		$session->set('newmail', $newmail); 
+		$session->set('newmail', $newmail);
+		$session->set('newgroups', $newgroups);
 		
     }
     function onUserAfterSave($user, $isnew, $success, $msg)
@@ -66,6 +83,7 @@ class plgUserWowacc extends JPlugin
 			$session = JFactory::getSession();
 			$wowpass = $session->get('wowpass');
 			$newmail = $session->get('newmail');
+			$newgroups = $session->get('newgroups');
 			$wowmail = $user['email'];
 			$wowuser = $user['username'];
 			//Get Databasesession
@@ -84,8 +102,8 @@ class plgUserWowacc extends JPlugin
 				$set_val[0] = "'$wowuser', '$wowpass', '$wowmail',";
 			}		
 			else {
-				//Any changes to email or password?
-				if ((empty($wowpass)) && (!$newmail)){
+				//Any changes to email, group or password?
+				if ((empty($wowpass)) && (!$newmail) && (!$newgroups)){
 					//no changes made
 					return;
 				}
