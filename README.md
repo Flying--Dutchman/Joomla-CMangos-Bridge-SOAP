@@ -8,3 +8,8 @@ Future plans
 
 * Watch Gamestats of Characters in Joomla.
 * Watch Gamestats of Guilds in Joomla.
+
+Source
+=================
+
+Build for: www.nordrassil.de
