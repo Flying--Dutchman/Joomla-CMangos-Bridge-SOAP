@@ -9,7 +9,7 @@
 // Check to ensure this file is included in Joomla!
 defined('_JEXEC') or die();
  
-class plgUserWowacc extends JPlugin
+class plgUserWowaccsoap extends JPlugin
 {
     function onUserBeforeSave($user, $isnew, $new)
     {		
@@ -23,19 +23,10 @@ class plgUserWowacc extends JPlugin
 		}
 		//check if a new password was set
 		if ($user['password'] != $new['password']) {
-			//new password --> encrypt it
-			$wowuser = $new['username'];  
-			$wowpass = sha1(strtoupper($wowuser . ":" . $pass));
+			$wowpass = $pass;
 		}
 		else {
 			$wowpass = '';
-		}
-		//check if a new email was set
-		if ($user['email'] == $new['email']) {
-			$newmail = false;
-		}
-		else {
-			$newmail = true;
 		}
 		$usergroupold = $user['groups'];
 		$usergroup = $new['groups'];
@@ -50,9 +41,7 @@ class plgUserWowacc extends JPlugin
 		//save hashed password in new session variable
 		$session = JFactory::getSession();
 		$session->set('wowpass', $wowpass); 
-		$session->set('newmail', $newmail);
 		$session->set('newgroups', $newgroups);
-		
     }
     function onUserAfterSave($user, $isnew, $success, $msg)
     {	
@@ -62,63 +51,58 @@ class plgUserWowacc extends JPlugin
 		}
 		else {
 			//Load settings
-			$option = array(); 
-			$option['driver']   		= $this->params->get('mysql-driver');          
-			$option['host']     		= $this->params->get('mysql-host');  
-			$option['user']     		= $this->params->get('mysql-user');       
-			$option['password'] 		= $this->params->get('mysql-pass');   
-			$option['database'] 		= $this->params->get('mysql-database');      
-			$option['dbprefix'] 		= $this->params->get('mysql-dbprefix');
 			$option['id-mod'] 			= $this->params->get('id-mod');   
 			$option['id-gm'] 			= $this->params->get('id-gm');      
 			$option['id-admin'] 		= $this->params->get('id-admin'); 
 			$option['id-ignore-group'] 	= $this->params->get('id-ignore-group'); 
 			$option['id-ignore-user'] 	= $this->params->get('id-ignore-user');
+			
+			$soapUsername 				= $this->params->get('soap-user');
+			$soapPassword 				= $this->params->get('soap-pass');
+			$soapHost 					= $this->params->get('soap-host');
+			$soapPort 					= $this->params->get('soap-port');
+			$soapcommand 				= "";
+			
+			$client = new SoapClient(NULL, array(
+				'location' => "http://$soapHost:$soapPort/",
+				'uri'      => 'urn:MaNGOS',
+				'style'    => SOAP_RPC,
+				'login'    => $soapUsername,
+				'password' => $soapPassword,
+			));
 			//Load new Values (saved in Session in onUserBeforeSave)
 			$session = JFactory::getSession();
 			$wowpass = $session->get('wowpass');
-			$newmail = $session->get('newmail');
 			$newgroups = $session->get('newgroups');
 			$wowmail = $user['email'];
 			$wowuser = $user['username'];
 			//Get Databasesession
-			$db = JDatabaseDriver::getInstance($option);  
-			$query = $db->getQuery(true);
 			//SQL-Settings
-			$set_val = array();
 			$gmlvl = 0;
 			$modgmlvl = false;
 			
 			//New account or existing one being altered?
 			if ($isnew) {
-				$query
-					->insert($db->quoteName('account'))
-					->columns(array('username', 'sha_pass_hash', 'email', 'gmlevel'));
-				$set_val[0] = "'$wowuser', '$wowpass', '$wowmail',";
+				$soapcommand = "account create $wowuser $wowpass";
 			}		
 			else {
 				//Any changes to email, group or password?
-				if ((empty($wowpass)) && (!$newmail) && (!$newgroups)){
+				if ((empty($wowpass)) && (!$newgroups)){
 					//no changes made
 					return;
 				}
 				//Is a new password set?
-				if (empty($wowpass)){
-					//password is empty, so password hasn't changed
-					$query
-						->update($db->quoteName('account')) 
-						->where(array($db->quoteName('username') . '=' . "'" . $user['username'] . "'"));  
-					array_push($set_val, $db->quoteName('email') . '=' . "'$wowmail'");
-				}
-				else {
-					//password isn't empty, so password was altered
-					$query
-						->update($db->quoteName('account'))
-						->where(array($db->quoteName('username') . '=' . "'" . $user['username'] . "'"));
-					array_push($set_val, $db->quoteName('sha_pass_hash') . '=' . "'$wowpass'", $db->quoteName('email') . '=' . "'$wowmail'", $db->quoteName('v') . "=''", $db->quoteName('s') . "=''" );
+				if (!empty($wowpass)){
+					//password is not empty, so password has changed
+					$soapcommand = "account set password $wowuser $wowpass $wowpass";
 				}
 			}
-			
+			//if $soapcommand not empty, execute
+			if (!empty($soapcommand)){
+				$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
+				JFactory::getApplication()->enqueueMessage($result);
+				$soapcommand = '';
+			}
 			//Also change WoW-Rank?
 			if (!empty($option['id-mod']) || !empty($option['id-gm']) || !empty($option['id-admin'])) {
 				//one or more fields are set --> Check if user should be skipped
@@ -140,71 +124,66 @@ class plgUserWowacc extends JPlugin
 					}
 				}
 			}
-			if ($isnew) {
-				$set_val[0] .= "'$gmlvl'"; 
-				$query->values($set_val[0]);
+			if ($isnew && ($gmlevel > 0)) {
+				$soapcommand = "account set gmlevel $wowuser $gmlevel";
+				JFactory::getApplication()->enqueueMessage("$wowuser $gmlevel");
 			}
 			else {
 				if ($modgmlvl) {
-					array_push($set_val, $db->quoteName('gmlevel') . "='$gmlvl'");
+					$soapcommand = "account set gmlevel $wowuser $gmlevel";
+					JFactory::getApplication()->enqueueMessage("$wowuser $gmlevel");
 				}
-				$query->set($set_val);
 			}
-			
-			$db->setQuery($query); 
-			$db->execute();
+			//if $soapcommand not empty, execute
+			if (!empty($soapcommand)){
+				$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
+				JFactory::getApplication()->enqueueMessage($result);
+				$soapcommand = '';
+			}
 			
 			//Block, Delete user?
 			if (($this->params->get('joomlablock') == 'on') && $user['block'] ) {
 				$this->onUserAfterDelete($user, true, $msg);
 			}
 			elseif (($this->params->get('wowenable') == 'on') && !$user['block']) {
-				$query
-					->clear()
-					->update($db->quoteName('account')) 
-					->set(array($db->quoteName('locked') . "='0'"))
-					->where(array($db->quoteName('username') . '=' . "'" . $user['username'] . "'")); 
-				$db->setQuery($query); 
-				$db->execute();	
+				$soapcommand = "account lock off";
+				$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
+				JFactory::getApplication()->enqueueMessage($result);
 			}
 		}
     }
 
 	function onUserAfterDelete($user, $success, $msg ) {
-		//Load settings
-		$option = array(); 
-		$option['driver']   		= $this->params->get('mysql-driver');          
-		$option['host']     		= $this->params->get('mysql-host');  
-		$option['user']     		= $this->params->get('mysql-user');       
-		$option['password'] 		= $this->params->get('mysql-pass');   
-		$option['database'] 		= $this->params->get('mysql-database');      
-		$option['dbprefix'] 		= $this->params->get('mysql-dbprefix');
-		$option['lock'] 			= $this->params->get('wowlock');   
-
-		//Get Databasesession
-		$db = JDatabaseDriver::getInstance($option);  
-		$query = $db->getQuery(true);
+		//Load settings       
+		$option['lock'] 			= $this->params->get('wowlock'); 
+		$soapUsername 				= $this->params->get('soap-user');
+		$soapPassword 				= $this->params->get('soap-pass');
+		$soapHost 					= $this->params->get('soap-host');
+		$soapPort 					= $this->params->get('soap-port');
+		$soapcommand 				= "";		
 		
+		$client = new SoapClient(NULL, array(
+				'location' => "http://$soapHost:$soapPort/",
+				'uri'      => 'urn:MaNGOS',
+				'style'    => SOAP_RPC,
+				'login'    => $soapUsername,
+				'password' => $soapPassword,
+			));
+			
 		if ($success) {
 			//Lock or Delete WoW-Account?
 			if ($option['lock'] == "lock") {
-				$query
-					->update($db->quoteName('account')) 
-					->set(array($db->quoteName('locked') . "='1'"))
-					->where(array($db->quoteName('username') . '=' . "'" . $user['username'] . "'"));  
+				 $soapcommand = "account lock on";
 			}
 			elseif ($option['delete'] == "delete") {
-				$query
-					->delete($db->quoteName('account'))
-					->where(array($db->quoteName('username') . '=' . "'" . $user['username'] . "'"));
+				$soapcommand = "account delete " . $user['username'];
 			}
-			else {
-				//Plausi
-				return;
+			//if $soapcommand not empty, execute
+			if (!empty($soapcommand)){
+				$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
+				JFactory::getApplication()->enqueueMessage($result);
 			}
 			
-			$db->setQuery($query); 
-			$db->execute();
 		}
 	}
 }
