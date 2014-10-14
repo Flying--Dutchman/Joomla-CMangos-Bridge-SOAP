@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <extension version="3.0" type="plugin" group="user">
-	<name>WoW-Account</name>
+	<name>WoW-Account-Soap</name>
 	<author>Flying Dutchman</author>
 	<creationDate>October 2014</creationDate>
 	<copyright>Copyright (C) 2014 - 2015 Nordrassil.de. All rights reserved.</copyright>
@@ -10,19 +10,17 @@
 	<version>1.0</version>
 	<description>An example user synchronisation plugin</description>
 	<files>
-		<filename plugin="wowacc">wowacc.php</filename>
-		<filename>wowacc.html</filename>
+		<filename plugin="wowaccsoap">wowaccsoap.php</filename>
+		<filename>wowaccsoap.html</filename>
 	</files>
 	<config>
 		<fields name="params">
 			<fieldset name="basic">
-				<field name="note1" type="note" label="SQL-Database settings" />
-				<field name="mysql-driver"  type="text" default="mysqli" label="Driver" description="Joomla SQL Driver (mysql, mysqli, mssql...)" />
-				<field name="mysql-host"  type="text" default="localhost" label="Host" description="Hostserver of the Database e.g. localhost, 0.0.0.0, ..." />
-				<field name="mysql-user"  type="text" default="root" label="User" description="SQL-User" />
-				<field name="mysql-pass" type="password" default="secret" label="Password" description="SQL-Password" />
-				<field name="mysql-database"  type="text" default="realmd" label="Database" description="Databse of the Server" />
-				<field name="mysql-dbprefix"  type="text" default="" label="Tableprefix (optional)" description="" />
+				<field name="note1" type="note" label="Soap-settings" />
+				<field name="soap-host"  type="text" default="localhost" label="Host" description="Soap-Server e.g. localhost, 0.0.0.0, ..." />
+				<field name="soap-port" type="text" default="80" label="Port" description="Soap-Port" />
+				<field name="soap-user"  type="text" default="" label="User" description="Soap-User" />
+				<field name="soap-pass" type="password" default="secret" label="Password" description="Soap-Password" />
 				<field name="note2" type="note" label="Change ingame-GM-level" />
 				<field name="note3" type="note" description="Leave fields blank to disable this option. If activated: READ DESCRIPTION by hovering over the label in front of the field." />
 				<field name="id-mod"  type="text" default="" label="Mod ID" description="ID's of the Joomlagroup of which players should become WoW-Mod. (sep. by ',')" />
@@ -31,7 +29,6 @@
 				<field name="id-ignore-group"  type="text" default="" label="Group ignore ID" description="ID's of the Joomlagroup of which players should not become WoW-Mod/Gamemaster/Administrator. (sep. by ',')" />
 				<field name="id-ignore-user"  type="text" default="" label="User ignore ID" description="ID's of the Joomlagroup of which players should become also WoW-Mod. (sep. by ',')" />
 				<field name="note4" type="note" label="Lock or delete WoW-Accounts" />
-				<field name="note5" type="note" description="CAUTION: Deleted WoW-Accounts can not be retrieved! " />
 				<field name="wowlock" type="list" default="nothing" label="Lock or Delete WoW-Account when a Joomla-Account gets deleted.                   " description="NOTHING = no changes made in WoW-DB. LOCK = Lock the user in WoW-DB. DELETE = Delete Account from the account table." filter="">
 					<option
 						value="nothing">nothing</option>
