@@ -30,6 +30,7 @@ class plgUserWowaccsoap extends JPlugin
 			$session->set('wowpass', '');
 		}
 		
+		//Get arrays of old and new groups
 		$usergroupold = $user['groups']; 
 		$usergroup = $new['groups'];
 		
@@ -38,7 +39,7 @@ class plgUserWowaccsoap extends JPlugin
 			$session->set('newgroups', false);
 		}
 		else {
-			//was altered (maybe not a impotant groupchange, but to lazy to write that code)
+			//was altered (maybe not an impotant groupchange, but to lazy to write that code)
 			$session->set('newgroups', true);
 		}
 		//check if user block state changes
@@ -78,7 +79,7 @@ class plgUserWowaccsoap extends JPlugin
 			));
 			
 			//Load new Values (saved in Session in onUserBeforeSave) 
-			//Read her for clarity (overview)
+			//Read here for clarity (overview)
 			$session = JFactory::getSession();
 			$wowpass = $session->get('wowpass');
 			$newgroups = $session->get('newgroups');
