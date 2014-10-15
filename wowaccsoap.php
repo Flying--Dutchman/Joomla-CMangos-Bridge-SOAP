@@ -12,7 +12,8 @@ defined('_JEXEC') or die();
 class plgUserWowaccsoap extends JPlugin
 {
     function onUserBeforeSave($user, $isnew, $new)
-    {		
+    {	
+		$session = JFactory::getSession(); //Needed to pass info to onUserAfterSave
 		//needed to get unhashed password
 		$pass = $_POST["password"];
 		//if not empty then it comes from kunena
@@ -23,25 +24,30 @@ class plgUserWowaccsoap extends JPlugin
 		}
 		//check if a new password was set
 		if ($user['password'] != $new['password']) {
-			$wowpass = $pass;
-		}
+			$session->set('wowpass', $pass);
+		} 
 		else {
-			$wowpass = '';
+			$session->set('wowpass', '');
 		}
-		$usergroupold = $user['groups'];
+		
+		$usergroupold = $user['groups']; 
 		$usergroup = $new['groups'];
+		
 		//check if groups was altered
 		if (!(array_diff($usergroupold, $usergroup)) && !(array_diff($usergroup, $usergroupold))) {
-			$newgroups = false;
+			$session->set('newgroups', false);
 		}
 		else {
 			//was altered (maybe not a impotant groupchange, but to lazy to write that code)
-			$newgroups = false;
+			$session->set('newgroups', true);
 		}
-		//save hashed password in new session variable
-		$session = JFactory::getSession();
-		$session->set('wowpass', $wowpass); 
-		$session->set('newgroups', $newgroups);
+		//check if user block state changes
+		if ($user['block'] != $new['block']) {
+			$session->set('blockedchanged', true); //changed
+		}
+		else {
+			$session->set('blockedchanged', false);
+		}
     }
     function onUserAfterSave($user, $isnew, $success, $msg)
     {	
@@ -70,14 +76,16 @@ class plgUserWowaccsoap extends JPlugin
 				'login'    => $soapUsername,
 				'password' => $soapPassword,
 			));
-			//Load new Values (saved in Session in onUserBeforeSave)
+			
+			//Load new Values (saved in Session in onUserBeforeSave) 
+			//Read her for clarity (overview)
 			$session = JFactory::getSession();
 			$wowpass = $session->get('wowpass');
 			$newgroups = $session->get('newgroups');
 			$wowmail = $user['email'];
 			$wowuser = $user['username'];
-			//Get Databasesession
-			//SQL-Settings
+			
+			//init
 			$gmlvl = 0;
 			$modgmlvl = false;
 			
@@ -124,31 +132,32 @@ class plgUserWowaccsoap extends JPlugin
 					}
 				}
 			}
-			if ($isnew && ($gmlevel > 0)) {
-				$soapcommand = "account set gmlevel $wowuser $gmlevel";
-				JFactory::getApplication()->enqueueMessage("$wowuser $gmlevel");
+			if ($isnew) { 
+				if ($gmlevel > 0) {
+					$soapcommand = "account set gmlevel $wowuser $gmlevel";
+				}
 			}
 			else {
 				if ($modgmlvl) {
 					$soapcommand = "account set gmlevel $wowuser $gmlevel";
-					JFactory::getApplication()->enqueueMessage("$wowuser $gmlevel");
 				}
 			}
 			//if $soapcommand not empty, execute
 			if (!empty($soapcommand)){
 				$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
-				JFactory::getApplication()->enqueueMessage($result);
 				$soapcommand = '';
 			}
 			
-			//Block, Delete user?
-			if (($this->params->get('joomlablock') == 'on') && $user['block'] ) {
-				$this->onUserAfterDelete($user, true, $msg);
-			}
-			elseif (($this->params->get('wowenable') == 'on') && !$user['block']) {
-				$soapcommand = "account lock off";
-				$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
-				JFactory::getApplication()->enqueueMessage($result);
+			if ($session->get('wowpass')) { //Block state changed?
+				//Block, Delete user?
+				if (($this->params->get('joomlablock') == 'on') && $user['block'] ) {
+					$this->onUserAfterDelete($user, true, $msg);
+				}
+				elseif (($this->params->get('wowenable') == 'on') && !$user['block']) {
+					$soapcommand = "account lock off";
+					$result = $client->executeCommand(new SoapParam($soapcommand, 'command'));
+					JFactory::getApplication()->enqueueMessage($result);
+				}
 			}
 		}
     }
